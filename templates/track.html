@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Lacak Pesanan - Chendra Grill{% endblock %}
+
+{% block content %}
+<section class="track-hero">
+    <div class="container">
+        <h1 class="page-title">Lacak Pesanan</h1>
+        <p class="page-desc">Masukkan nomor pesanan atau nomor meja untuk melihat status</p>
+
+        <div class="track-box">
+            <div class="track-tabs">
+                <button class="track-tab active" data-mode="order" onclick="switchTrackTab('order')">Nomor Pesanan</button>
+                <button class="track-tab" data-mode="table" onclick="switchTrackTab('table')">Nomor Meja</button>
+            </div>
+            <div class="track-row" id="trackByOrder">
+                <input type="number" id="trackOrderId" placeholder="Contoh: 1" class="track-input" min="1">
+                <button class="btn btn-primary" onclick="trackByOrderId()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    Cari
+                </button>
+            </div>
+            <div class="track-row" id="trackByTable" style="display:none;">
+                <input type="number" id="trackTableNum" placeholder="Contoh: 5" class="track-input" min="1" max="20">
+                <button class="btn btn-primary" onclick="trackByTableNum()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    Cari
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="track-results" id="trackResults" style="display:none;">
+    <div class="container">
+        <h2 class="section-title" id="resultsTitle">Hasil Pencarian</h2>
+        <div class="orders-list" id="ordersList"></div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ORDER_ID_FROM_URL = {{ order_id|default('null') }};
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (ORDER_ID_FROM_URL) {
+        document.getElementById('trackOrderId').value = ORDER_ID_FROM_URL;
+        trackByOrderId();
+    }
+});
+
+function switchTrackTab(mode) {
+    document.querySelectorAll('.track-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.track-tab[data-mode="${mode}"]`).classList.add('active');
+    document.getElementById('trackByOrder').style.display = mode === 'order' ? 'flex' : 'none';
+    document.getElementById('trackByTable').style.display = mode === 'table' ? 'flex' : 'none';
+}
+
+async function trackByOrderId() {
+    const id = document.getElementById('trackOrderId').value;
+    if (!id) return;
+    try {
+        const res = await fetch(`/api/order/${id}`);
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Pesanan tidak ditemukan', 'error'); return; }
+        document.getElementById('resultsTitle').textContent = `Pesanan #${data.order.id}`;
+        const list = document.getElementById('ordersList');
+        list.innerHTML = '';
+        list.appendChild(createOrderCard(data.order, data.items));
+        document.getElementById('trackResults').style.display = 'block';
+    } catch (e) { showToast('Gagal mengambil data', 'error'); }
+}
+
+async function trackByTableNum() {
+    const num = document.getElementById('trackTableNum').value;
+    if (!num) return;
+    try {
+        const res = await fetch(`/api/table/${num}/orders`);
+        const data = await res.json();
+        if (data.orders.length === 0) { showToast('Tidak ada pesanan di meja ini', 'error'); return; }
+        document.getElementById('resultsTitle').textContent = `Meja ${num} — ${data.orders.length} Pesanan`;
+        const list = document.getElementById('ordersList');
+        list.innerHTML = '';
+        data.orders.forEach(o => list.appendChild(createOrderCard(o.order, o.items)));
+        document.getElementById('trackResults').style.display = 'block';
+    } catch (e) { showToast('Gagal mengambil data', 'error'); }
+}
+
+function createOrderCard(order, items) {
+    const cfg = {
+        pending: { label: 'Menunggu Konfirmasi', cls: 'pending' },
+        preparing: { label: 'Sedang Disiapkan', cls: 'preparing' },
+        ready: { label: 'Siap Diambil', cls: 'ready' },
+        served: { label: 'Sudah Dihidangkan', cls: 'served' }
+    };
+    const s = cfg[order.status] || cfg.pending;
+    const steps = ['pending', 'preparing', 'ready', 'served'];
+    const stepLabels = ['Dipesan', 'Disiapkan', 'Siap', 'Dihidangkan'];
+    const idx = steps.indexOf(order.status);
+
+    let prog = '<div class="order-progress">';
+    steps.forEach((step, i) => {
+        const act = i <= idx;
+        const cur = i === idx;
+        prog += `<div class="progress-step ${act ? 'active' : ''} ${cur ? 'current' : ''}">
+            <div class="progress-dot"></div>
+            <span class="progress-label">${stepLabels[i]}</span>
+        </div>`;
+        if (i < steps.length - 1) prog += `<div class="progress-line ${i < idx ? 'active' : ''}"></div>`;
+    });
+    prog += '</div>';
+
+    const card = document.createElement('div');
+    card.className = `order-card status-${order.status}`;
+    card.innerHTML = `
+        <div class="order-card-header">
+            <div class="order-id">Pesanan #${order.id}</div>
+            <div class="status-badge ${s.cls}">${s.label}</div>
+        </div>
+        <div class="order-meta">
+            <span>Meja ${order.table_number}</span>
+            <span>${formatTime(order.created_at)}</span>
+        </div>
+        ${prog}
+        <div class="order-items-text">${items.map(i => `${i.name} x${i.quantity}`).join(' · ')}</div>
+        <div class="order-total-line">Total: <strong>Rp ${order.total_price.toLocaleString('id-ID').replace(/,/g, '.')}</strong></div>
+    `;
+    return card;
+}
+
+function formatTime(ts) {
+    if (!ts) return '';
+    return new Date(ts.replace(' ', 'T')).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+setInterval(() => {
+    const r = document.getElementById('trackResults');
+    if (r.style.display !== 'none') {
+        const oid = document.getElementById('trackOrderId');
+        const tnum = document.getElementById('trackTableNum');
+        if (oid.value) trackByOrderId();
+        else if (tnum.value) trackByTableNum();
+    }
+}, 15000);
+</script>
+{% endblock %}

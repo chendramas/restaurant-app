@@ -1,0 +1,15 @@
+CARA RUNNING CHENDRA GRILL
+============================
+
+1. Buka terminal
+2. cd /Users/chendra/chendra-grill
+3. source venv/bin/activate
+4. python app.py
+5. Buka browser: http://127.0.0.1:5002
+
+Halaman:
+- /        → Menu & pemesanan
+- /track   → Lacak pesanan (by ID atau meja)
+- /admin   → Dashboard dapur
+
+Matikan: Ctrl+C

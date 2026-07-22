@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Dapur - Chendra Grill{% endblock %}
+
+{% block content %}
+<section class="admin-hero">
+    <div class="container">
+        <h1 class="page-title">Dashboard Dapur</h1>
+        <p class="page-desc">Kelola pesanan masuk dan update status</p>
+        <div class="admin-stats" id="adminStats">
+            <div class="stat-card stat-pending">
+                <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+                <div><span class="stat-value" id="statPending">0</span><span class="stat-label">Menunggu</span></div>
+            </div>
+            <div class="stat-card stat-preparing">
+                <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1 3 2.5 3.5 3.5 4.5A5 5 0 0 1 17 10a5 5 0 0 1-10 0c0-2.5 2-4 3.5-4.5 1-1 2.5-1.5 3.5-3.5z"/></svg></div>
+                <div><span class="stat-value" id="statPreparing">0</span><span class="stat-label">Disiapkan</span></div>
+            </div>
+            <div class="stat-card stat-ready">
+                <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
+                <div><span class="stat-value" id="statReady">0</span><span class="stat-label">Siap</span></div>
+            </div>
+            <div class="stat-card stat-served">
+                <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+                <div><span class="stat-value" id="statServed">0</span><span class="stat-label">Selesai Hari Ini</span></div>
+            </div>
+            <div class="stat-card stat-revenue">
+                <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                <div><span class="stat-value" id="statRevenue">Rp 0</span><span class="stat-label">Pendapatan Hari Ini</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="admin-orders">
+    <div class="container">
+        <h2 class="section-title">Pesanan Aktif</h2>
+        <div class="admin-grid">
+            {% if orders %}
+                {% for order in orders %}
+                <div class="admin-card status-{{ order.status }}" data-order-id="{{ order.id }}">
+                    <div class="admin-card-header">
+                        <div class="admin-card-id">#{{ order.id }}</div>
+                        <div class="admin-card-table">Meja {{ order.table_number }}</div>
+                    </div>
+                    <div class="admin-card-status">
+                        {% if order.status == 'pending' %}<span class="status-badge pending">Menunggu</span>
+                        {% elif order.status == 'preparing' %}<span class="status-badge preparing">Disiapkan</span>
+                        {% elif order.status == 'ready' %}<span class="status-badge ready">Siap</span>{% endif %}
+                    </div>
+                    <div class="admin-card-items">
+                        {% for item_text in order.items_summary.split(', ') %}
+                        <div class="admin-item-line">{{ item_text }}</div>
+                        {% endfor %}
+                    </div>
+                    {% if order.notes %}
+                    <div class="admin-card-notes">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        {{ order.notes }}
+                    </div>
+                    {% endif %}
+                    <div class="admin-card-footer">
+                        <span class="admin-card-time">{{ order.created_at }}</span>
+                        <div>
+                            {% if order.status == 'pending' %}
+                            <button class="btn-action btn-start" onclick="updateStatus({{ order.id }}, 'preparing')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                Mulai
+                            </button>
+                            {% elif order.status == 'preparing' %}
+                            <button class="btn-action btn-done" onclick="updateStatus({{ order.id }}, 'ready')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                                Siap
+                            </button>
+                            {% elif order.status == 'ready' %}
+                            <button class="btn-action btn-serve" onclick="updateStatus({{ order.id }}, 'served')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                                Dihidangkan
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="admin-empty">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                    <p>Tidak ada pesanan aktif</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% if served_orders %}
+<section class="admin-served">
+    <div class="container">
+        <h2 class="section-title">Riwayat Hari Ini</h2>
+        <div class="served-table-wrap">
+            <table class="served-table">
+                <thead><tr><th>#</th><th>Meja</th><th>Pesanan</th><th>Total</th><th>Waktu</th></tr></thead>
+                <tbody>
+                    {% for order in served_orders %}
+                    <tr>
+                        <td>{{ order.id }}</td>
+                        <td>{{ order.table_number }}</td>
+                        <td>{{ order.items_summary }}</td>
+                        <td>Rp {{ "{:,.0f}".format(order.total_price).replace(",", ".") }}</td>
+                        <td>{{ order.updated_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function updateStatus(orderId, newStatus) {
+    try {
+        const res = await fetch(`/api/order/${orderId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`Pesanan #${orderId} diupdate`, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else { showToast(data.error || 'Gagal update', 'error'); }
+    } catch (e) { showToast('Gagal update status', 'error'); }
+}
+
+async function refreshStats() {
+    try {
+        const res = await fetch('/api/admin/stats');
+        const d = await res.json();
+        document.getElementById('statPending').textContent = d.pending;
+        document.getElementById('statPreparing').textContent = d.preparing;
+        document.getElementById('statReady').textContent = d.ready;
+        document.getElementById('statServed').textContent = d.served_today;
+        document.getElementById('statRevenue').textContent = 'Rp ' + d.revenue_today.toLocaleString('id-ID').replace(/,/g, '.');
+    } catch (e) {}
+}
+
+refreshStats();
+setInterval(refreshStats, 10000);
+</script>
+{% endblock %}

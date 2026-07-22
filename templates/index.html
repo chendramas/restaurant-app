@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Chendra Grill - Menu & Pesan{% endblock %}
+
+{% block content %}
+<!-- HERO — Uber style: split layout, solid bg, no gradient text -->
+<section class="hero">
+    <div class="hero-inner">
+        <div class="hero-text">
+            <div class="hero-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1 3 2.5 3.5 3.5 4.5A5 5 0 0 1 17 10a5 5 0 0 1-10 0c0-2.5 2-4 3.5-4.5 1-1 2.5-1.5 3.5-3.5z"/></svg>
+                Grill & BBQ Premium
+            </div>
+            <h1 class="hero-title">Pesan langsung dari meja Anda</h1>
+            <p class="hero-desc">Pilih menu favorit, tentukan meja, dan pantau pesanan secara real-time. Tanpa antri, tanpa ribet.</p>
+            <div class="hero-actions">
+                <a href="#menu-section" class="btn btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+                    Lihat Menu
+                </a>
+                <a href="/track" class="btn btn-secondary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    Lacak Pesanan
+                </a>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="hero-visual-inner">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2c1 3 2.5 3.5 3.5 4.5A5 5 0 0 1 17 10a5 5 0 0 1-10 0c0-2.5 2-4 3.5-4.5 1-1 2.5-1.5 3.5-3.5z"/><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17c0 .66-.27 1.27-.7 1.7"/><path d="M15.5 14.5A2.5 2.5 0 0 1 13 17c0 .66.27 1.27.7 1.7"/><path d="M12 20v2"/></svg>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TABLE SELECTOR — Uber chip style -->
+<section class="table-section" id="table-section">
+    <div class="container">
+        <div class="section-header reveal">
+            <div class="section-label">Langkah 1</div>
+            <h2 class="section-title">Pilih Meja Anda</h2>
+            <p class="section-desc">Tap nomor meja tempat Anda duduk</p>
+        </div>
+        <div class="table-floor reveal-stagger" id="tableGrid">
+            {% for t in tables %}
+            <button class="table-card" data-table="{{ t }}" onclick="selectTable({{ t }})">
+                <div class="table-card-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg>
+                </div>
+                <span class="table-card-num">Meja {{ t }}</span>
+                <span class="table-card-cap">4 kursi</span>
+            </button>
+            {% endfor %}
+        </div>
+        <div class="selected-table-bar" id="selectedTableDisplay">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+            Meja <strong id="selectedTableNum">-</strong> dipilih
+            <button class="btn btn-ghost btn-sm" onclick="clearTable()" style="margin-left:auto;">Ganti</button>
+        </div>
+    </div>
+</section>
+
+<!-- MENU — Mixed layout: featured + grid + list -->
+<section class="menu-section" id="menu-section">
+    <div class="container">
+        <div class="section-header reveal">
+            <div class="section-label">Langkah 2</div>
+            <h2 class="section-title">Pilih Menu</h2>
+            <p class="section-desc">Tap tambah untuk memasukkan ke keranjang</p>
+        </div>
+
+        <!-- Category pills (Uber horizontal scroll) -->
+        <div class="category-bar reveal">
+            <button class="cat-pill active" data-cat="all" onclick="filterCategory('all')">Semua</button>
+            {% for cat in categories %}
+            <button class="cat-pill" data-cat="{{ cat.id }}" onclick="filterCategory({{ cat.id }})">{{ cat.name }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- FEATURED: First Grill item as full-width horizontal card -->
+        {% for item in menu_items %}
+        {% if item.category_name == 'Grill & BBQ' and loop.index <= 1 %}
+        <div class="menu-featured reveal" data-cat="{{ item.category_id }}" data-id="{{ item.id }}">
+            <div class="menu-featured-img">
+                {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy">
+                {% else %}
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2c1 3 2.5 3.5 3.5 4.5A5 5 0 0 1 17 10a5 5 0 0 1-10 0c0-2.5 2-4 3.5-4.5 1-1 2.5-1.5 3.5-3.5z"/></svg>
+                {% endif %}
+            </div>
+            <div class="menu-featured-body">
+                <h3 class="menu-featured-title">{{ item.name }}</h3>
+                <p class="menu-featured-desc">{{ item.description }}</p>
+                <div class="menu-featured-footer">
+                    <span class="menu-price">Rp {{ "{:,.0f}".format(item.price).replace(",", ".") }}</span>
+                    <button class="btn btn-primary btn-sm" onclick="addToCart({{ item.id }}, '{{ item.name }}', {{ item.price }})">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                        Tambah
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <!-- GRID: Standard menu cards -->
+        <div class="menu-grid reveal-stagger" id="menuGrid">
+            {% for item in menu_items %}
+            {% if not (item.category_name == 'Grill & BBQ' and loop.index <= 1) %}
+            <div class="menu-card" data-cat="{{ item.category_id }}" data-id="{{ item.id }}">
+                <div class="menu-card-top">
+                    {% if item.image_url %}
+                    <img src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
+                    {% else %}
+                    {% if item.category_name == 'Grill & BBQ' %}
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2c1 3 2.5 3.5 3.5 4.5A5 5 0 0 1 17 10a5 5 0 0 1-10 0c0-2.5 2-4 3.5-4.5 1-1 2.5-1.5 3.5-3.5z"/></svg>
+                    {% elif item.category_name == 'Nasi & Mie' %}
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.5V20h6v-2.5c2.9-1.2 5-4.1 5-7.5a8 8 0 0 0-8-8z"/></svg>
+                    {% elif item.category_name == 'Minuman' %}
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/></svg>
+                    {% elif item.category_name == 'Snack & Appetizer' %}
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 15h.01"/><path d="M2 16l20 6-6-20A20 20 0 0 0 2 16"/></svg>
+                    {% else %}
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>
+                    {% endif %}
+                    {% endif %}
+                    <span class="menu-card-tag">{{ item.category_name }}</span>
+                </div>
+                <div class="menu-card-body">
+                    <h3 class="menu-card-name">{{ item.name }}</h3>
+                    <p class="menu-card-desc">{{ item.description }}</p>
+                    <div class="menu-card-bottom">
+                        <span class="menu-price">Rp {{ "{:,.0f}".format(item.price).replace(",", ".") }}</span>
+                        <button class="btn-add" onclick="addToCart({{ item.id }}, '{{ item.name }}', {{ item.price }})">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                            Tambah
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- FLOATING CART -->
+<div class="cart-float" id="cartFloat" style="display:none;">
+    <button class="cart-float-btn" onclick="toggleCart()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <span class="cart-badge" id="cartBadge">0</span>
+    </button>
+</div>
+
+<!-- CART PANEL -->
+<div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+<div class="cart-panel" id="cartPanel">
+    <div class="cart-header">
+        <h3>Pesanan Anda</h3>
+        <button class="btn-close" onclick="toggleCart()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+    </div>
+    <div class="cart-body" id="cartBody">
+        <div class="cart-empty" id="cartEmpty">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+            <p>Keranjang kosong</p>
+        </div>
+        <div class="cart-items" id="cartItems"></div>
+    </div>
+    <div class="cart-footer" id="cartFooter" style="display:none;">
+        <div class="cart-total">
+            <span>Total</span>
+            <span id="cartTotal">Rp 0</span>
+        </div>
+        <div class="cart-field">
+            <input type="text" id="customerName" placeholder="Nama (opsional)" class="input-field">
+        </div>
+        <div class="cart-field">
+            <input type="text" id="orderNotes" placeholder="Catatan pesanan (opsional)" class="input-field">
+        </div>
+        <button class="btn-order" id="btnOrder" onclick="placeOrder()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            Pesan Sekarang
+        </button>
+    </div>
+</div>
+
+<!-- ORDER SUCCESS MODAL -->
+<div class="modal-overlay" id="orderModal" style="display:none;">
+    <div class="modal-card">
+        <div class="modal-icon success">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        </div>
+        <h2 class="modal-title">Pesanan Berhasil!</h2>
+        <p class="modal-desc" id="modalDesc">-</p>
+        <div class="modal-actions">
+            <a href="#" class="btn btn-primary" id="modalTrackBtn">Lacak Pesanan</a>
+            <button class="btn btn-secondary" onclick="closeModal()">Pesan Lagi</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
