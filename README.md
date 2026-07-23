@@ -2,6 +2,10 @@
 
 Restaurant ordering system. Customers browse the menu, select their table, place orders, and track order status in real-time. Kitchen staff manage orders through an admin dashboard.
 
+## Live Demo
+
+🔗 **https://restaurant-app-sigma-flame.vercel.app**
+
 ## Features
 
 - **Menu browsing** with category filters and food photos
