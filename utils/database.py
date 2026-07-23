@@ -22,7 +22,66 @@ def get_db():
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA journal_mode=WAL")
         g.db.execute("PRAGMA foreign_keys=ON")
+        # Auto-init tables if they don't exist (needed for Vercel serverless)
+        _ensure_tables(g.db)
     return g.db
+
+
+def _ensure_tables(db):
+    """Check if tables exist, create if not. Fast check for serverless cold starts."""
+    try:
+        db.execute("SELECT 1 FROM categories LIMIT 1")
+    except sqlite3.OperationalError:
+        # Tables don't exist, initialize
+        _create_tables(db)
+        cursor = db.execute("SELECT COUNT(*) FROM categories")
+        if cursor.fetchone()[0] == 0:
+            seed_menu(db)
+        db.commit()
+
+
+def _create_tables(db):
+    """Create all tables."""
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            icon TEXT DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS menu_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            price INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            image_url TEXT DEFAULT '',
+            available INTEGER DEFAULT 1,
+            FOREIGN KEY (category_id) REFERENCES categories(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_number INTEGER NOT NULL,
+            customer_name TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending','preparing','ready','served')),
+            total_price INTEGER DEFAULT 0,
+            notes TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            menu_item_id INTEGER NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            item_price INTEGER NOT NULL,
+            notes TEXT DEFAULT '',
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
+        );
+    """)
 
 
 def close_db(exception):
