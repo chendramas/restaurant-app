@@ -4,8 +4,24 @@
 {% block content %}
 <section class="admin-hero">
     <div class="container">
-        <h1 class="page-title">Dashboard Dapur</h1>
-        <p class="page-desc">Kelola pesanan masuk dan update status</p>
+        <div class="admin-hero-header">
+            <div>
+                <h1 class="page-title">Dashboard Dapur</h1>
+                <p class="page-desc">Kelola pesanan masuk dan update status</p>
+            </div>
+            <div class="admin-refresh-bar">
+                <span class="refresh-indicator" id="refreshIndicator">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+                    Refresh dalam <strong id="refreshCountdown">10</strong> dtk
+                </span>
+                {% if orders %}
+                <button class="btn btn-ghost btn-sm" onclick="bulkServeAll()" title="Tandai semua pesanan aktif sebagai selesai">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                    Selesaikan Semua
+                </button>
+                {% endif %}
+            </div>
+        </div>
         <div class="admin-stats" id="adminStats">
             <div class="stat-card stat-pending">
                 <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
@@ -37,7 +53,7 @@
         <div class="admin-grid">
             {% if orders %}
                 {% for order in orders %}
-                <div class="admin-card status-{{ order.status }}" data-order-id="{{ order.id }}">
+                <div class="admin-card status-{{ order.status }}" data-order-id="{{ order.id }}" data-created="{{ order.created_at }}">
                     <div class="admin-card-header">
                         <div class="admin-card-id">#{{ order.id }}</div>
                         <div class="admin-card-table">Meja {{ order.table_number }}</div>
@@ -59,7 +75,7 @@
                     </div>
                     {% endif %}
                     <div class="admin-card-footer">
-                        <span class="admin-card-time">{{ order.created_at }}</span>
+                        <span class="admin-card-time" data-time="{{ order.created_at }}">{{ order.created_at }}</span>
                         <div>
                             {% if order.status == 'pending' %}
                             <button class="btn-action btn-start" onclick="updateStatus({{ order.id }}, 'preparing')">
@@ -133,6 +149,18 @@ async function updateStatus(orderId, newStatus) {
     } catch (e) { showToast('Gagal update status', 'error'); }
 }
 
+async function bulkServeAll() {
+    if (!confirm('Tandai semua pesanan aktif sebagai selesai?')) return;
+    try {
+        const res = await fetch('/api/order/bulk-serve', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`${data.count} pesanan diselesaikan`, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else { showToast(data.error || 'Gagal', 'error'); }
+    } catch (e) { showToast('Gagal bulk update', 'error'); }
+}
+
 async function refreshStats() {
     try {
         const res = await fetch('/api/admin/stats');
@@ -145,7 +173,39 @@ async function refreshStats() {
     } catch (e) {}
 }
 
+// Update time elapsed on each card
+function updateElapsedTimes() {
+    document.querySelectorAll('.admin-card-time[data-time]').forEach(el => {
+        const created = new Date(el.dataset.time.replace(' ', 'T'));
+        const diff = Math.floor((Date.now() - created.getTime()) / 1000);
+        if (diff < 60) {
+            el.textContent = `${diff} dtk lalu`;
+        } else if (diff < 3600) {
+            el.textContent = `${Math.floor(diff / 60)} menit lalu`;
+        } else {
+            el.textContent = `${Math.floor(diff / 3600)} jam lalu`;
+        }
+    });
+}
+
+// Auto-refresh with countdown
+let refreshInterval = 10;
+let countdown = refreshInterval;
+
+function tick() {
+    countdown--;
+    const el = document.getElementById('refreshCountdown');
+    if (el) el.textContent = countdown;
+    if (countdown <= 0) {
+        countdown = refreshInterval;
+        refreshStats();
+        location.reload();
+    }
+}
+
 refreshStats();
-setInterval(refreshStats, 10000);
+updateElapsedTimes();
+setInterval(updateElapsedTimes, 30000);
+setInterval(tick, 1000);
 </script>
 {% endblock %}

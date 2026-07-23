@@ -27,6 +27,11 @@
                 </button>
             </div>
         </div>
+
+        <div class="track-refresh-bar" id="trackRefreshBar" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+            Auto-refresh dalam <strong id="trackCountdown">15</strong> dtk
+        </div>
     </div>
 </section>
 
@@ -56,6 +61,13 @@ function switchTrackTab(mode) {
     document.getElementById('trackByTable').style.display = mode === 'table' ? 'flex' : 'none';
 }
 
+const ESTIMATED_TIMES = {
+    pending: '± 5-10 menit',
+    preparing: '± 10-20 menit',
+    ready: 'Siap diambil!',
+    served: 'Selesai'
+};
+
 async function trackByOrderId() {
     const id = document.getElementById('trackOrderId').value;
     if (!id) return;
@@ -68,6 +80,8 @@ async function trackByOrderId() {
         list.innerHTML = '';
         list.appendChild(createOrderCard(data.order, data.items));
         document.getElementById('trackResults').style.display = 'block';
+        document.getElementById('trackRefreshBar').style.display = 'flex';
+        resetTrackCountdown();
     } catch (e) { showToast('Gagal mengambil data', 'error'); }
 }
 
@@ -83,6 +97,8 @@ async function trackByTableNum() {
         list.innerHTML = '';
         data.orders.forEach(o => list.appendChild(createOrderCard(o.order, o.items)));
         document.getElementById('trackResults').style.display = 'block';
+        document.getElementById('trackRefreshBar').style.display = 'flex';
+        resetTrackCountdown();
     } catch (e) { showToast('Gagal mengambil data', 'error'); }
 }
 
@@ -110,6 +126,8 @@ function createOrderCard(order, items) {
     });
     prog += '</div>';
 
+    const estTime = ESTIMATED_TIMES[order.status] || '';
+
     const card = document.createElement('div');
     card.className = `order-card status-${order.status}`;
     card.innerHTML = `
@@ -122,6 +140,7 @@ function createOrderCard(order, items) {
             <span>${formatTime(order.created_at)}</span>
         </div>
         ${prog}
+        ${order.status !== 'served' ? `<div class="order-est-time">Estimasi: ${estTime}</div>` : ''}
         <div class="order-items-text">${items.map(i => `${i.name} x${i.quantity}`).join(' · ')}</div>
         <div class="order-total-line">Total: <strong>Rp ${order.total_price.toLocaleString('id-ID').replace(/,/g, '.')}</strong></div>
     `;
@@ -133,14 +152,31 @@ function formatTime(ts) {
     return new Date(ts.replace(' ', 'T')).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-setInterval(() => {
+// Track page auto-refresh with countdown
+let trackRefreshInterval = 15;
+let trackCountdownVal = trackRefreshInterval;
+
+function resetTrackCountdown() {
+    trackCountdownVal = trackRefreshInterval;
+    const el = document.getElementById('trackCountdown');
+    if (el) el.textContent = trackCountdownVal;
+}
+
+function trackTick() {
     const r = document.getElementById('trackResults');
-    if (r.style.display !== 'none') {
+    if (!r || r.style.display === 'none') return;
+    trackCountdownVal--;
+    const el = document.getElementById('trackCountdown');
+    if (el) el.textContent = trackCountdownVal;
+    if (trackCountdownVal <= 0) {
+        trackCountdownVal = trackRefreshInterval;
         const oid = document.getElementById('trackOrderId');
         const tnum = document.getElementById('trackTableNum');
         if (oid.value) trackByOrderId();
         else if (tnum.value) trackByTableNum();
     }
-}, 15000);
+}
+
+setInterval(trackTick, 1000);
 </script>
 {% endblock %}

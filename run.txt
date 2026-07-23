@@ -1,15 +1,33 @@
-CARA RUNNING CHENDRA GRILL
-============================
+CHENDRA GRILL — Run Instructions
+================================
 
-1. Buka terminal
-2. cd /Users/chendra/chendra-grill
-3. source venv/bin/activate
-4. python app.py
-5. Buka browser: http://127.0.0.1:5002
+1. Clone / navigate to the project:
 
-Halaman:
-- /        → Menu & pemesanan
-- /track   → Lacak pesanan (by ID atau meja)
-- /admin   → Dashboard dapur
+   cd chendra-grill
 
-Matikan: Ctrl+C
+2. Create a virtual environment:
+
+   python3 -m venv venv
+   source venv/bin/activate
+
+3. Install dependencies:
+
+   pip install -r requirements.txt
+
+4. Set up environment variables:
+
+   cp .env.example .env
+   # Edit .env with your actual secret key and admin password
+
+5. Run the app:
+
+   python app.py
+
+6. Open in browser:
+
+   http://127.0.0.1:5002
+
+7. Admin dashboard:
+
+   http://127.0.0.1:5002/admin/login
+   (use the password you set in ADMIN_PASSWORD)

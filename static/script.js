@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // IntersectionObserver — Motion.dev scroll reveal
     initScrollAnimations();
+
+    // Back to top button
+    initBackToTop();
 });
 
 // ─── SCROLL ANIMATIONS (Motion.dev pattern) ───
@@ -43,6 +46,18 @@ function initScrollAnimations() {
 
     document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => {
         observer.observe(el);
+    });
+}
+
+// ─── BACK TO TOP ───
+function initBackToTop() {
+    const btn = document.getElementById('backToTop');
+    if (!btn) return;
+    window.addEventListener('scroll', () => {
+        btn.style.display = window.scrollY > 500 ? 'flex' : 'none';
+    }, { passive: true });
+    btn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 }
 
@@ -177,6 +192,26 @@ function toggleCart() {
     }
 }
 
+// ─── ORDER CONFIRMATION SOUND (Web Audio API) ───
+function playOrderSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+    } catch (e) {
+        // Web Audio not supported, skip silently
+    }
+}
+
 // ─── PLACE ORDER ───
 async function placeOrder() {
     if (!selectedTable) {
@@ -188,8 +223,9 @@ async function placeOrder() {
     if (cart.length === 0) { showToast('Keranjang kosong!', 'error'); return; }
 
     const btn = document.getElementById('btnOrder');
+    const origHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.textContent = 'Memproses...';
+    btn.innerHTML = '<svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Memproses...';
 
     try {
         const res = await fetch('/api/order', {
@@ -204,6 +240,7 @@ async function placeOrder() {
         });
         const data = await res.json();
         if (data.success) {
+            playOrderSound();
             cart = [];
             saveCart();
             updateCartUI();
@@ -223,7 +260,7 @@ async function placeOrder() {
         showToast('Gagal menghubungi server', 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Pesan Sekarang';
+        btn.innerHTML = origHTML;
     }
 }
 

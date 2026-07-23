@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Chendra Grill{% endblock %}</title>
+    <meta name="description" content="{% block meta_desc %}Chendra Grill — Grill & BBQ premium. Pesan langsung dari meja, lacak pesanan real-time.{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}Chendra Grill{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}Grill & BBQ premium. Pesan langsung dari meja Anda.{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="http://127.0.0.1:5002">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=1200&q=80">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
@@ -66,6 +74,11 @@
             <p class="footer-copy">&copy; 2026 Chendra Grill. All rights reserved.</p>
         </div>
     </footer>
+
+    <!-- Back to top button -->
+    <button class="back-to-top" id="backToTop" aria-label="Kembali ke atas" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+    </button>
 
     <div class="toast-container" id="toastContainer"></div>
 

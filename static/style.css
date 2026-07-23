@@ -1743,3 +1743,123 @@ img { max-width: 100%; display: block; }
 }
 
 .login-back:hover { color: var(--text-primary); }
+
+/* ═══════════════════════════════════════════
+   BACK TO TOP BUTTON
+   ═══════════════════════════════════════════ */
+.back-to-top {
+    position: fixed;
+    bottom: var(--space-xl);
+    right: 88px;
+    z-index: 800;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-float);
+}
+
+.back-to-top:hover {
+    background: var(--bg-chip);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+
+/* ═══════════════════════════════════════════
+   SPINNER (loading state for order button)
+   ═══════════════════════════════════════════ */
+.spinner {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════
+   ADMIN: refresh bar & hero header
+   ═══════════════════════════════════════════ */
+.admin-hero-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-lg);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-lg);
+}
+
+.admin-refresh-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-shrink: 0;
+}
+
+.refresh-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.refresh-indicator strong {
+    color: var(--text-secondary);
+    min-width: 14px;
+    text-align: center;
+}
+
+/* ═══════════════════════════════════════════
+   TRACK: refresh bar
+   ═══════════════════════════════════════════ */
+.track-refresh-bar {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    margin-top: var(--space-lg);
+    padding: 4px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    width: fit-content;
+}
+
+.track-refresh-bar strong {
+    color: var(--text-secondary);
+    min-width: 14px;
+    text-align: center;
+}
+
+/* ═══════════════════════════════════════════
+   TRACK: estimated time
+   ═══════════════════════════════════════════ */
+.order-est-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--gold-subtle);
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: var(--space-md);
+}
+
+@media (max-width: 640px) {
+    .admin-hero-header { flex-direction: column; }
+    .admin-refresh-bar { width: 100%; justify-content: space-between; }
+}

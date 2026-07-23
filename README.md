@@ -8,8 +8,9 @@ Restaurant ordering system. Customers browse the menu, select their table, place
 - **Table selection** with visual floor-map style cards
 - **Order placement** with cart, notes, and customer name
 - **Order tracking** by order ID or table number with progress visualization
-- **Kitchen dashboard** (admin-protected) with status management and daily stats
-- **Auto-refresh** on tracking and admin pages
+- **Kitchen dashboard** (admin-protected) with status management, daily stats, bulk actions
+- **Auto-refresh** with countdown indicator on tracking and admin pages
+- **Order confirmation sound** via Web Audio API
 
 ## Tech Stack
 
@@ -18,17 +19,28 @@ Restaurant ordering system. Customers browse the menu, select their table, place
 - Vanilla HTML / CSS / JS
 - Dark theme with Uber Eats-inspired design tokens
 
-## Run
+## Quick Start
 
 ```bash
 cd chendra-grill
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env       # Edit .env with your secret key and admin password
 python app.py
 ```
 
 Open http://127.0.0.1:5002
+
+See `run.txt` for detailed instructions.
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `SECRET_KEY` | **Required.** Flask session secret. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ADMIN_PASSWORD` | **Required.** Admin dashboard password |
+| `FLASK_DEBUG` | Set to `true` for development auto-reload. Default: `false` |
 
 ## Pages
 
@@ -39,27 +51,27 @@ Open http://127.0.0.1:5002
 | `/admin/login` | Admin login |
 | `/admin` | Kitchen dashboard (auth required) |
 
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ADMIN_PASSWORD` | `chendragrill2026` | Admin dashboard password |
-| `SECRET_KEY` | `chendra-grill-secret-key...` | Flask session secret |
-
 ## Project Structure
 
 ```
 chendra-grill/
-├── app.py                  # Flask app, routes, API, DB
-├── requirements.txt
-├── .gitignore
+├── app.py                  # Flask routes & API endpoints
+├── utils/
+│   ├── __init__.py
+│   ├── database.py         # DB connection, schema, seed data
+│   └── auth.py             # Admin auth decorator
 ├── templates/
-│   ├── base.html           # Base layout, nav, footer
+│   ├── base.html           # Base layout, nav, footer, meta tags
 │   ├── index.html          # Menu & ordering page
 │   ├── track.html          # Order tracking page
 │   ├── admin.html          # Kitchen dashboard
 │   └── admin_login.html    # Admin login page
-└── static/
-    ├── style.css           # Dark theme, Uber Eats tokens
-    └── script.js           # Cart, ordering, animations
+├── static/
+│   ├── style.css           # Dark theme, Uber Eats tokens
+│   └── script.js           # Cart, ordering, animations
+├── requirements.txt
+├── .env.example            # Template for environment variables
+├── .gitignore
+├── run.txt                 # Run instructions
+└── README.md
 ```
