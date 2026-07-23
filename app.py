@@ -32,6 +32,9 @@ db_init_app(app)
 # Register teardown
 app.teardown_appcontext(close_db)
 
+# Initialize database tables on startup (needed for Vercel serverless)
+init_db()
+
 
 # ──────────────────────────────────────────────
 # ROUTES - PAGES
