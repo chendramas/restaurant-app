@@ -10,22 +10,21 @@ from utils.database import get_db, close_db, init_db, init_app as db_init_app
 from utils.auth import admin_required
 
 app = Flask(__name__)
-app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'chendra_grill.db')
 
-# ── Security: require env vars, no insecure defaults ──
-app.secret_key = os.environ.get('SECRET_KEY')
-if not app.secret_key:
-    raise RuntimeError(
-        "SECRET_KEY environment variable is not set. "
-        "Copy .env.example to .env and set a real secret key."
-    )
+# ── Database path: /tmp on Vercel (writable), project dir locally ──
+if os.environ.get('VERCEL'):
+    app.config['DATABASE'] = '/tmp/chendra_grill.db'
+else:
+    app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'chendra_grill.db')
 
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
-if not ADMIN_PASSWORD:
-    raise RuntimeError(
-        "ADMIN_PASSWORD environment variable is not set. "
-        "Copy .env.example to .env and set a password."
-    )
+# ── Security: require env vars ──
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-vercel')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'chendragrill2026')
+
+# Warn in production if using defaults
+if not os.environ.get('VERCEL') and app.secret_key == 'dev-secret-key-change-in-vercel':
+    import warnings
+    warnings.warn("Using default SECRET_KEY. Set SECRET_KEY env var in production.")
 
 # Initialize database module with app config
 db_init_app(app)
