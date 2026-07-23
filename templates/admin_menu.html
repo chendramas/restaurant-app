@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Kelola Menu - Chendra Grill{% endblock %}
+
+{% block content %}
+<section class="admin-hero">
+    <div class="container">
+        <div class="admin-hero-header">
+            <div>
+                <h1 class="page-title">Kelola Menu</h1>
+                <p class="page-desc">Tambah, edit, dan kelola ketersediaan menu</p>
+            </div>
+            <div class="admin-refresh-bar">
+                <a href="/admin" class="btn btn-secondary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                    Kembali ke Dapur
+                </a>
+                <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    Tambah Menu
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="menu-mgmt-section">
+    <div class="container">
+        <div class="menu-mgmt-toolbar">
+            <div class="menu-mgmt-search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="menuSearch" class="input-field" placeholder="Cari menu..." oninput="renderMenuTable()" aria-label="Cari menu">
+            </div>
+            <select id="categoryFilter" class="input-field menu-mgmt-filter" onchange="renderMenuTable()" aria-label="Filter kategori">
+                <option value="all">Semua Kategori</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="menu-table-wrap">
+            <table class="menu-table" id="menuTable">
+                <thead>
+                    <tr>
+                        <th class="menu-th-img">Gambar</th>
+                        <th>Nama</th>
+                        <th>Kategori</th>
+                        <th>Harga</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="menuTableBody">
+                    <tr><td colspan="6" class="menu-loading">Memuat data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="menuModal" style="display:none;">
+    <div class="modal-card modal-large">
+        <button class="modal-close-btn" onclick="closeMenuModal()" aria-label="Tutup">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="modal-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+        </div>
+        <h3 class="modal-title" id="modalTitle">Tambah Menu</h3>
+        <p class="modal-desc" id="modalDesc">Isi data menu baru</p>
+
+        <form id="menuForm" onsubmit="return saveMenuItem(event)" class="menu-form">
+            <div class="menu-form-row">
+                <div class="menu-form-field">
+                    <label for="itemName">Nama Menu <span class="required">*</span></label>
+                    <input type="text" id="itemName" class="input-field" required placeholder="Contoh: Ayam Bakar Madu">
+                </div>
+                <div class="menu-form-field">
+                    <label for="itemPrice">Harga (Rp) <span class="required">*</span></label>
+                    <input type="number" id="itemPrice" class="input-field" required min="1" step="1000" placeholder="35000">
+                </div>
+            </div>
+            <div class="menu-form-row">
+                <div class="menu-form-field">
+                    <label for="itemCategory">Kategori <span class="required">*</span></label>
+                    <select id="itemCategory" class="input-field" required>
+                        <option value="">Pilih kategori</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="menu-form-field">
+                    <label for="itemImage">URL Gambar</label>
+                    <input type="url" id="itemImage" class="input-field" placeholder="https://...">
+                </div>
+            </div>
+            <div class="menu-form-field">
+                <label for="itemDesc">Deskripsi</label>
+                <textarea id="itemDesc" class="input-field menu-textarea" rows="3" placeholder="Deskripsi singkat menu"></textarea>
+            </div>
+            <div class="modal-actions" style="margin-top: var(--space-xl);">
+                <button type="button" class="btn btn-secondary" onclick="closeMenuModal()">Batal</button>
+                <button type="submit" class="btn btn-primary" id="btnSave">Simpan</button>
+            </div>
+        </form>
+        <input type="hidden" id="editItemId" value="">
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModal" style="display:none;">
+    <div class="modal-card">
+        <button class="modal-close-btn" onclick="closeDeleteModal()" aria-label="Tutup">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="modal-icon" style="background: rgba(220, 38, 38, 0.12); color: var(--accent);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+        </div>
+        <h3 class="modal-title">Hapus Menu</h3>
+        <p class="modal-desc" id="deleteDesc">Yakin ingin menghapus menu ini?</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeDeleteModal()">Batal</button>
+            <button class="btn btn-primary" id="btnConfirmDelete" onclick="confirmDelete()">Hapus</button>
+        </div>
+        <input type="hidden" id="deleteItemId" value="">
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let menuItems = [];
+
+document.addEventListener('DOMContentLoaded', loadMenuItems);
+
+async function loadMenuItems() {
+    try {
+        const res = await fetch('/api/admin/menu');
+        if (res.status === 401 || res.redirected) {
+            window.location.href = '/admin/login';
+            return;
+        }
+        const data = await res.json();
+        menuItems = data.items || [];
+        renderMenuTable();
+    } catch (e) {
+        document.getElementById('menuTableBody').innerHTML =
+            '<tr><td colspan="6" class="menu-loading">Gagal memuat data</td></tr>';
+    }
+}
+
+function renderMenuTable() {
+    const search = document.getElementById('menuSearch').value.toLowerCase();
+    const catFilter = document.getElementById('categoryFilter').value;
+
+    let filtered = menuItems.filter(item => {
+        const matchSearch = item.name.toLowerCase().includes(search) ||
+                           (item.description || '').toLowerCase().includes(search);
+        const matchCat = catFilter === 'all' || item.category_id == catFilter;
+        return matchSearch && matchCat;
+    });
+
+    const tbody = document.getElementById('menuTableBody');
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="menu-loading">Tidak ada menu ditemukan</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(item => `
+        <tr class="menu-row ${item.available ? '' : 'menu-row-unavailable'}">
+            <td class="menu-td-img">
+                ${item.image_url
+                    ? `<img src="${item.image_url}" alt="${item.name}" class="menu-thumb" onerror="this.parentElement.innerHTML='<div class=\\'menu-thumb-placeholder\\'>🍽️</div>'">`
+                    : '<div class="menu-thumb-placeholder">🍽️</div>'}
+            </td>
+            <td>
+                <div class="menu-td-name">${item.name}</div>
+                ${item.description ? `<div class="menu-td-desc">${item.description}</div>` : ''}
+            </td>
+            <td><span class="menu-cat-badge">${item.category_name}</span></td>
+            <td class="menu-td-price">Rp ${item.price.toLocaleString('id-ID').replace(/,/g, '.')}</td>
+            <td>
+                <button class="toggle-btn ${item.available ? 'toggle-on' : 'toggle-off'}"
+                        onclick="toggleAvailability(${item.id})"
+                        title="${item.available ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}"
+                        aria-label="Toggle ketersediaan ${item.name}">
+                    <span class="toggle-track">
+                        <span class="toggle-thumb"></span>
+                    </span>
+                    <span class="toggle-label">${item.available ? 'Aktif' : 'Nonaktif'}</span>
+                </button>
+            </td>
+            <td class="menu-td-actions">
+                <button class="btn-icon btn-icon-edit" onclick="openEditModal(${item.id})" title="Edit" aria-label="Edit ${item.name}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                </button>
+                <button class="btn-icon btn-icon-delete" onclick="openDeleteModal(${item.id})" title="Hapus" aria-label="Hapus ${item.name}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openAddModal() {
+    document.getElementById('editItemId').value = '';
+    document.getElementById('modalTitle').textContent = 'Tambah Menu';
+    document.getElementById('modalDesc').textContent = 'Isi data menu baru';
+    document.getElementById('menuForm').reset();
+    document.getElementById('menuModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('itemName').focus();
+}
+
+function openEditModal(id) {
+    const item = menuItems.find(i => i.id === id);
+    if (!item) return;
+
+    document.getElementById('editItemId').value = id;
+    document.getElementById('modalTitle').textContent = 'Edit Menu';
+    document.getElementById('modalDesc').textContent = `Edit data "${item.name}"`;
+    document.getElementById('itemName').value = item.name;
+    document.getElementById('itemDesc').value = item.description || '';
+    document.getElementById('itemPrice').value = item.price;
+    document.getElementById('itemCategory').value = item.category_id;
+    document.getElementById('itemImage').value = item.image_url || '';
+    document.getElementById('menuModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('itemName').focus();
+}
+
+function closeMenuModal() {
+    document.getElementById('menuModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+async function saveMenuItem(e) {
+    e.preventDefault();
+    const editId = document.getElementById('editItemId').value;
+    const payload = {
+        name: document.getElementById('itemName').value.trim(),
+        description: document.getElementById('itemDesc').value.trim(),
+        price: parseInt(document.getElementById('itemPrice').value),
+        category_id: parseInt(document.getElementById('itemCategory').value),
+        image_url: document.getElementById('itemImage').value.trim()
+    };
+
+    const btn = document.getElementById('btnSave');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan...';
+
+    try {
+        const url = editId ? `/api/admin/menu/${editId}` : '/api/admin/menu';
+        const method = editId ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeMenuModal();
+            await loadMenuItems();
+        } else {
+            showToast(data.error || 'Gagal menyimpan', 'error');
+        }
+    } catch (e) {
+        showToast('Gagal menghubungi server', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = origText;
+    }
+}
+
+function openDeleteModal(id) {
+    const item = menuItems.find(i => i.id === id);
+    if (!item) return;
+    document.getElementById('deleteItemId').value = id;
+    document.getElementById('deleteDesc').textContent = `Yakin ingin menghapus "${item.name}"?`;
+    document.getElementById('deleteModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+async function confirmDelete() {
+    const id = document.getElementById('deleteItemId').value;
+    const btn = document.getElementById('btnConfirmDelete');
+    btn.disabled = true;
+    btn.textContent = 'Menghapus...';
+
+    try {
+        const res = await fetch(`/api/admin/menu/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeDeleteModal();
+            await loadMenuItems();
+        } else {
+            showToast(data.error || 'Gagal menghapus', 'error');
+        }
+    } catch (e) {
+        showToast('Gagal menghubungi server', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Hapus';
+    }
+}
+
+async function toggleAvailability(id) {
+    try {
+        const res = await fetch(`/api/admin/menu/${id}/toggle`, { method: 'PUT' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Update local state and re-render
+            const item = menuItems.find(i => i.id === id);
+            if (item) item.available = data.available;
+            renderMenuTable();
+        } else {
+            showToast(data.error || 'Gagal mengubah status', 'error');
+        }
+    } catch (e) {
+        showToast('Gagal menghubungi server', 'error');
+    }
+}
+
+// Close modals on overlay click
+document.getElementById('menuModal').addEventListener('click', function(e) {
+    if (e.target === this) closeMenuModal();
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+});
+
+// Close modals on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMenuModal();
+        closeDeleteModal();
+    }
+});
+</script>
+{% endblock %}

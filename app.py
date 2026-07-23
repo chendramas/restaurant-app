@@ -289,6 +289,141 @@ def admin_stats():
     })
 
 
+@app.route('/admin/menu')
+@admin_required
+def admin_menu():
+    db = get_db()
+    categories = db.execute("SELECT * FROM categories ORDER BY id").fetchall()
+    return render_template('admin_menu.html', categories=categories)
+
+
+@app.route('/api/admin/menu')
+@admin_required
+def api_admin_menu():
+    """Get all menu items with category names (including unavailable)."""
+    db = get_db()
+    items = [dict(r) for r in db.execute("""
+        SELECT m.*, c.name as category_name
+        FROM menu_items m
+        JOIN categories c ON m.category_id = c.id
+        ORDER BY c.id, m.name
+    """).fetchall()]
+    return jsonify({'items': items})
+
+
+@app.route('/api/admin/menu', methods=['POST'])
+@admin_required
+def api_admin_menu_add():
+    """Add a new menu item."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Data tidak valid'}), 400
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    price = data.get('price')
+    category_id = data.get('category_id')
+    image_url = (data.get('image_url') or '').strip()
+
+    if not name:
+        return jsonify({'error': 'Nama menu wajib diisi'}), 400
+    if not isinstance(price, (int, float)) or price <= 0:
+        return jsonify({'error': 'Harga harus lebih dari 0'}), 400
+
+    db = get_db()
+    cat = db.execute("SELECT id FROM categories WHERE id = ?", (category_id,)).fetchone()
+    if not cat:
+        return jsonify({'error': 'Kategori tidak ditemukan'}), 400
+
+    cursor = db.execute(
+        "INSERT INTO menu_items (name, description, price, category_id, image_url) VALUES (?, ?, ?, ?, ?)",
+        (name, description, int(price), category_id, image_url)
+    )
+    db.commit()
+
+    return jsonify({'success': True, 'id': cursor.lastrowid, 'message': f'{name} berhasil ditambahkan'}), 201
+
+
+@app.route('/api/admin/menu/<int:item_id>', methods=['PUT'])
+@admin_required
+def api_admin_menu_update(item_id):
+    """Update an existing menu item."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Data tidak valid'}), 400
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    price = data.get('price')
+    category_id = data.get('category_id')
+    image_url = (data.get('image_url') or '').strip()
+    available = data.get('available', 1)
+
+    if not name:
+        return jsonify({'error': 'Nama menu wajib diisi'}), 400
+    if not isinstance(price, (int, float)) or price <= 0:
+        return jsonify({'error': 'Harga harus lebih dari 0'}), 400
+
+    db = get_db()
+    item = db.execute("SELECT id FROM menu_items WHERE id = ?", (item_id,)).fetchone()
+    if not item:
+        return jsonify({'error': 'Menu tidak ditemukan'}), 404
+
+    cat = db.execute("SELECT id FROM categories WHERE id = ?", (category_id,)).fetchone()
+    if not cat:
+        return jsonify({'error': 'Kategori tidak ditemukan'}), 400
+
+    db.execute(
+        "UPDATE menu_items SET name=?, description=?, price=?, category_id=?, image_url=?, available=? WHERE id=?",
+        (name, description, int(price), category_id, image_url, int(available), item_id)
+    )
+    db.commit()
+
+    return jsonify({'success': True, 'message': f'{name} berhasil diupdate'})
+
+
+@app.route('/api/admin/menu/<int:item_id>', methods=['DELETE'])
+@admin_required
+def api_admin_menu_delete(item_id):
+    """Delete a menu item. If it has been ordered, set unavailable instead."""
+    db = get_db()
+    item = db.execute("SELECT * FROM menu_items WHERE id = ?", (item_id,)).fetchone()
+    if not item:
+        return jsonify({'error': 'Menu tidak ditemukan'}), 404
+
+    # Check if item has been ordered
+    ordered = db.execute(
+        "SELECT COUNT(*) as c FROM order_items WHERE menu_item_id = ?", (item_id,)
+    ).fetchone()['c']
+
+    if ordered > 0:
+        # Has orders — just mark unavailable
+        db.execute("UPDATE menu_items SET available = 0 WHERE id = ?", (item_id,))
+        db.commit()
+        return jsonify({'success': True, 'soft_deleted': True, 'message': f'{item["name"]} dinonaktifkan (memiliki riwayat pesanan)'})
+    else:
+        db.execute("DELETE FROM menu_items WHERE id = ?", (item_id,))
+        db.commit()
+        return jsonify({'success': True, 'soft_deleted': False, 'message': f'{item["name"]} berhasil dihapus'})
+
+
+@app.route('/api/admin/menu/<int:item_id>/toggle', methods=['PUT'])
+@admin_required
+def api_admin_menu_toggle(item_id):
+    """Toggle availability of a menu item."""
+    db = get_db()
+    item = db.execute("SELECT * FROM menu_items WHERE id = ?", (item_id,)).fetchone()
+    if not item:
+        return jsonify({'error': 'Menu tidak ditemukan'}), 404
+
+    new_val = 0 if item['available'] else 1
+    db.execute("UPDATE menu_items SET available = ? WHERE id = ?", (new_val, item_id))
+    db.commit()
+
+    status = 'tersedia' if new_val else 'tidak tersedia'
+    return jsonify({'success': True, 'available': new_val, 'message': f'{item["name"]} sekarang {status}'})
+
+
 @app.template_filter('format_price')
 def format_price(value):
     return f"Rp {value:,.0f}".replace(",", ".")
