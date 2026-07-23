@@ -289,6 +289,42 @@ def admin_stats():
     })
 
 
+@app.route('/api/admin/orders')
+@admin_required
+def admin_orders_api():
+    """Get all orders as JSON for short polling."""
+    db = get_db()
+    orders = db.execute("""
+        SELECT o.*, GROUP_CONCAT(m.name || ' x' || oi.quantity, ', ') as items_summary
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN menu_items m ON oi.menu_item_id = m.id
+        WHERE o.status != 'served'
+        GROUP BY o.id
+        ORDER BY CASE o.status
+            WHEN 'pending' THEN 1
+            WHEN 'preparing' THEN 2
+            WHEN 'ready' THEN 3
+        END, o.created_at ASC
+    """).fetchall()
+
+    served_orders = db.execute("""
+        SELECT o.*, GROUP_CONCAT(m.name || ' x' || oi.quantity, ', ') as items_summary
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN menu_items m ON oi.menu_item_id = m.id
+        WHERE o.status = 'served'
+        GROUP BY o.id
+        ORDER BY o.updated_at DESC
+        LIMIT 20
+    """).fetchall()
+
+    return jsonify({
+        'orders': [dict(o) for o in orders],
+        'served_orders': [dict(o) for o in served_orders]
+    })
+
+
 @app.route('/admin/menu')
 @admin_required
 def admin_menu():

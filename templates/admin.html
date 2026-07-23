@@ -16,14 +16,12 @@
                 </a>
                 <span class="refresh-indicator" id="refreshIndicator">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
-                    Refresh dalam <strong id="refreshCountdown">10</strong> dtk
+                    <span id="pollStatus">Polling aktif</span>
                 </span>
-                {% if orders %}
-                <button class="btn btn-ghost btn-sm" onclick="bulkServeAll()" title="Tandai semua pesanan aktif sebagai selesai">
+                <button class="btn btn-ghost btn-sm" id="btnBulkServe" onclick="bulkServeAll()" title="Tandai semua pesanan aktif sebagai selesai" style="{% if not orders %}display:none;{% endif %}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
                     Selesaikan Semua
                 </button>
-                {% endif %}
             </div>
         </div>
         <div class="admin-stats" id="adminStats">
@@ -54,7 +52,7 @@
 <section class="admin-orders">
     <div class="container">
         <h2 class="section-title">Pesanan Aktif</h2>
-        <div class="admin-grid">
+        <div class="admin-grid" id="ordersContainer">
             {% if orders %}
                 {% for order in orders %}
                 <div class="admin-card status-{{ order.status }}" data-order-id="{{ order.id }}" data-created="{{ order.created_at }}">
@@ -102,7 +100,7 @@
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="admin-empty">
+                <div class="admin-empty" id="emptyOrders">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
                     <p>Tidak ada pesanan aktif</p>
                 </div>
@@ -111,14 +109,13 @@
     </div>
 </section>
 
-{% if served_orders %}
-<section class="admin-served">
+<section class="admin-served" id="servedSection" style="{% if not served_orders %}display:none;{% endif %}">
     <div class="container">
         <h2 class="section-title">Riwayat Hari Ini</h2>
         <div class="served-table-wrap">
             <table class="served-table">
                 <thead><tr><th>#</th><th>Meja</th><th>Pesanan</th><th>Total</th><th>Waktu</th></tr></thead>
-                <tbody>
+                <tbody id="servedTableBody">
                     {% for order in served_orders %}
                     <tr>
                         <td>{{ order.id }}</td>
@@ -133,11 +130,39 @@
         </div>
     </div>
 </section>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ── Order tracking state ──
+let knownOrderIds = new Set();
+let isFirstPoll = true;
+
+// Initialize knownOrderIds from server-rendered cards
+document.querySelectorAll('.admin-card[data-order-id]').forEach(card => {
+    knownOrderIds.add(parseInt(card.dataset.orderId));
+});
+
+// ── Notification sound (Web Audio API) ──
+function playNotificationSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 800;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        osc.start(ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.stop(ctx.currentTime + 0.5);
+    } catch (e) {
+        // Web Audio not supported, skip silently
+    }
+}
+
+// ── Status update (no more full reload) ──
 async function updateStatus(orderId, newStatus) {
     try {
         const res = await fetch(`/api/order/${orderId}/status`, {
@@ -148,7 +173,9 @@ async function updateStatus(orderId, newStatus) {
         const data = await res.json();
         if (data.success) {
             showToast(`Pesanan #${orderId} diupdate`, 'success');
-            setTimeout(() => location.reload(), 500);
+            // Immediate poll to reflect the change
+            pollOrders();
+            refreshStats();
         } else { showToast(data.error || 'Gagal update', 'error'); }
     } catch (e) { showToast('Gagal update status', 'error'); }
 }
@@ -160,11 +187,13 @@ async function bulkServeAll() {
         const data = await res.json();
         if (data.success) {
             showToast(`${data.count} pesanan diselesaikan`, 'success');
-            setTimeout(() => location.reload(), 500);
+            pollOrders();
+            refreshStats();
         } else { showToast(data.error || 'Gagal', 'error'); }
     } catch (e) { showToast('Gagal bulk update', 'error'); }
 }
 
+// ── Stats refresh ──
 async function refreshStats() {
     try {
         const res = await fetch('/api/admin/stats');
@@ -177,7 +206,122 @@ async function refreshStats() {
     } catch (e) {}
 }
 
-// Update time elapsed on each card
+// ── Render an order card to HTML ──
+function renderOrderCard(order) {
+    const statusLabels = { pending: 'Menunggu', preparing: 'Disiapkan', ready: 'Siap' };
+    const items = (order.items_summary || '').split(', ').map(t =>
+        `<div class="admin-item-line">${escapeHtml(t)}</div>`
+    ).join('');
+
+    let actionBtn = '';
+    if (order.status === 'pending') {
+        actionBtn = `<button class="btn-action btn-start" onclick="updateStatus(${order.id}, 'preparing')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Mulai</button>`;
+    } else if (order.status === 'preparing') {
+        actionBtn = `<button class="btn-action btn-done" onclick="updateStatus(${order.id}, 'ready')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Siap</button>`;
+    } else if (order.status === 'ready') {
+        actionBtn = `<button class="btn-action btn-serve" onclick="updateStatus(${order.id}, 'served')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Dihidangkan</button>`;
+    }
+
+    const notesHtml = order.notes ? `<div class="admin-card-notes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> ${escapeHtml(order.notes)}</div>` : '';
+
+    return `
+        <div class="admin-card status-${order.status}" data-order-id="${order.id}" data-created="${order.created_at}">
+            <div class="admin-card-header">
+                <div class="admin-card-id">#${order.id}</div>
+                <div class="admin-card-table">Meja ${order.table_number}</div>
+            </div>
+            <div class="admin-card-status">
+                <span class="status-badge ${order.status}">${statusLabels[order.status] || order.status}</span>
+            </div>
+            <div class="admin-card-items">${items}</div>
+            ${notesHtml}
+            <div class="admin-card-footer">
+                <span class="admin-card-time" data-time="${order.created_at}">${order.created_at}</span>
+                <div>${actionBtn}</div>
+            </div>
+        </div>`;
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+// ── Render served orders table ──
+function renderServedOrders(servedOrders) {
+    const section = document.getElementById('servedSection');
+    const tbody = document.getElementById('servedTableBody');
+    if (!servedOrders || servedOrders.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+    tbody.innerHTML = servedOrders.map(o => {
+        const price = 'Rp ' + (o.total_price || 0).toLocaleString('id-ID').replace(/,/g, '.');
+        return `<tr><td>${o.id}</td><td>${o.table_number}</td><td>${escapeHtml(o.items_summary || '')}</td><td>${price}</td><td>${o.updated_at || ''}</td></tr>`;
+    }).join('');
+}
+
+// ── Main poll function ──
+async function pollOrders() {
+    try {
+        const res = await fetch('/api/admin/orders');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const incomingIds = new Set(data.orders.map(o => o.id));
+        const container = document.getElementById('ordersContainer');
+
+        // Detect truly new orders (not on first page load)
+        if (!isFirstPoll) {
+            for (const order of data.orders) {
+                if (!knownOrderIds.has(order.id)) {
+                    showToast(`Pesanan baru #${order.id} — Meja ${order.table_number}`, 'success');
+                    playNotificationSound();
+                }
+            }
+        }
+        isFirstPoll = false;
+        knownOrderIds = incomingIds;
+
+        // Rebuild active orders
+        if (data.orders.length === 0) {
+            container.innerHTML = `
+                <div class="admin-empty" id="emptyOrders">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                    <p>Tidak ada pesanan aktif</p>
+                </div>`;
+        } else {
+            container.innerHTML = data.orders.map(o => renderOrderCard(o)).join('');
+        }
+
+        // Update served orders table
+        renderServedOrders(data.served_orders);
+
+        // Update elapsed times
+        updateElapsedTimes();
+
+        // Update stats
+        refreshStats();
+
+        // Update "Selesaikan Semua" button visibility
+        const headerBtn = document.getElementById('btnBulkServe');
+        if (headerBtn) {
+            headerBtn.style.display = data.orders.length > 0 ? '' : 'none';
+        }
+
+        // Update poll status indicator
+        const statusEl = document.getElementById('pollStatus');
+        if (statusEl) statusEl.textContent = 'Polling aktif';
+
+    } catch (e) {
+        const statusEl = document.getElementById('pollStatus');
+        if (statusEl) statusEl.textContent = 'Koneksi terganggu';
+    }
+}
+
+// ── Elapsed time updater ──
 function updateElapsedTimes() {
     document.querySelectorAll('.admin-card-time[data-time]').forEach(el => {
         const created = new Date(el.dataset.time.replace(' ', 'T'));
@@ -192,24 +336,10 @@ function updateElapsedTimes() {
     });
 }
 
-// Auto-refresh with countdown
-let refreshInterval = 10;
-let countdown = refreshInterval;
-
-function tick() {
-    countdown--;
-    const el = document.getElementById('refreshCountdown');
-    if (el) el.textContent = countdown;
-    if (countdown <= 0) {
-        countdown = refreshInterval;
-        refreshStats();
-        location.reload();
-    }
-}
-
+// ── Start polling ──
 refreshStats();
 updateElapsedTimes();
 setInterval(updateElapsedTimes, 30000);
-setInterval(tick, 1000);
+setInterval(pollOrders, 3000);
 </script>
 {% endblock %}
